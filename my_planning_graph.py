@@ -299,13 +299,15 @@ class PlanningGraph():
         :return:
             adds A nodes to the current level in self.a_levels[level]
         """
-        # TODO add action A level to the planning graph as described in the Russell-Norvig text
-        # 1. determine what actions to add and create those PgNode_a objects
-        # 2. connect the nodes to the previous S literal level
-        # for example, the A0 level will iterate through all possible actions for the problem and add a PgNode_a to a_levels[0]
-        #   set iff all prerequisite literals for the action hold in S0.  This can be accomplished by testing
-        #   to see if a proposed PgNode_a has prenodes that are a subset of the previous S level.  Once an
-        #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
+        self.a_levels.append(set())
+        for action in self.all_actions:
+            action_node = PgNode_a(action)
+            for literal_node in self.s_levels[level]:
+                if literal_node in action_node.prenodes:
+                        self.a_levels[level].add(action_node)
+                        action_node.parents.add(literal_node)
+                        literal_node.children.add(action_node)
+                        
 
     def add_literal_level(self, level):
         """ add an S (literal) level to the Planning Graph
@@ -316,14 +318,13 @@ class PlanningGraph():
         :return:
             adds S nodes to the current level in self.s_levels[level]
         """
-        # TODO add literal S level to the planning graph as described in the Russell-Norvig text
-        # 1. determine what literals to add
-        # 2. connect the nodes
-        # for example, every A node in the previous level has a list of S nodes in effnodes that represent the effect
-        #   produced by the action.  These literals will all be part of the new S level.  Since we are working with sets, they
-        #   may be "added" to the set without fear of duplication.  However, it is important to then correctly create and connect
-        #   all of the new S nodes as children of all the A nodes that could produce them, and likewise add the A nodes to the
-        #   parent sets of the S nodes
+        self.s_levels.append(set())
+        for action_node in self.a_levels[level - 1]:
+            for literal_node in action_node.effnodes:
+                self.s_levels[level].add(literal_node)
+                action_node.children.add(literal_node)
+                literal_node.parents.add(action_node)
+                
 
     def update_a_mutex(self, nodeset):
         """ Determine and update sibling mutual exclusion for A-level nodes
@@ -381,7 +382,12 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Inconsistent Effects between nodes
+        for effect_add in node_a1.action.effect_add:
+            if effect_add in node_a2.action.effect_rem:
+                return True
+        for effect_add in node_a2.action.effect_add:
+            if effect_add in node_a1.action.effect_rem:
+                return True
         return False
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
@@ -398,7 +404,12 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Interference between nodes
+        for effect_rem in node_a1.action.effect_rem:
+            if effect_rem in node_a2.action.precond_pos:
+                return True
+        for effect_rem in node_a2.action.effect_rem:
+            if effect_rem in node_a1.action.precond_pos:
+                return True
         return False
 
     def competing_needs_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
@@ -412,7 +423,12 @@ class PlanningGraph():
         :return: bool
         """
 
-        # TODO test for Competing Needs between nodes
+        for precond_pos in node_a1.action.precond_pos:
+            if precond_pos in node_a2.action.precond_neg:
+                return True
+        for precond_pos in node_a2.action.precond_pos:
+            if precond_pos in node_a1.action.precond_neg:
+                return True
         return False
 
     def update_s_mutex(self, nodeset: set):
