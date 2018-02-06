@@ -422,13 +422,9 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-
-        for precond_pos in node_a1.action.precond_pos:
-            if precond_pos in node_a2.action.precond_neg:
-                return True
-        for precond_pos in node_a2.action.precond_pos:
-            if precond_pos in node_a1.action.precond_neg:
-                return True
+        for parent1 in node_a1.parents:
+            for parent2 in node_a2.parents:
+                return parent1.is_mutex(parent2)
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -463,7 +459,8 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for negation between nodes
+        if node_s1.symbol == node_s2.symbol and node_s1.is_pos != node_s2.is_pos:
+            return True
         return False
 
     def inconsistent_support_mutex(self, node_s1: PgNode_s, node_s2: PgNode_s):
@@ -482,8 +479,11 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for Inconsistent Support between nodes
-        return False
+        for parent1 in node_s1.parents:
+            for parent2 in node_s2.parents:
+                if not parent1.is_mutex(parent2):
+                    return False
+        return True
 
     def h_levelsum(self) -> int:
         """The sum of the level costs of the individual goals (admissible if goals independent)
@@ -491,6 +491,17 @@ class PlanningGraph():
         :return: int
         """
         level_sum = 0
-        # TODO implement
-        # for each goal in the problem, determine the level cost, then add them together
+        for goal in self.problem.goal:
+            goal_found = False
+            level = 0
+            goal_node = PgNode_s(goal, True)
+            while level < len(self.s_levels):
+                for literal in self.s_levels[level]:
+                    if goal_node == literal:
+                        level_sum += level
+                        goal_found = True
+                        break
+                if goal_found:
+                    break
+                level += 1
         return level_sum
